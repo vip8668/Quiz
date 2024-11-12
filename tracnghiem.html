@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bài thi trắc nghiệm</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            background-color: #f3f4f6;
+            margin: 0;
+            padding-top: 100px;
+        }
+
+        #quiz-container {
+            width: 100%;
+            max-width: 600px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        #questions-list {
+            list-style: none;
+            padding: 0;
+            margin: 20px 0;
+        }
+
+        #questions-list li {
+            margin-bottom: 15px;
+            padding: 15px;
+            background-color: #f9fafb;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            text-align: left;
+        }
+
+        #questions-list p {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .options-container {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-start;
+            flex-wrap: wrap;
+        }
+
+        .options-container label {
+            padding: 8px 12px;
+            border-radius: 5px;
+            background-color: #e2e8f0;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            text-align: center;
+            min-width: 60px;
+        }
+
+        .options-container label:hover {
+            background-color: #cbd5e0;
+        }
+
+        input[type="radio"] {
+            margin-right: 5px;
+        }
+
+        #result {
+            font-size: 18px;
+            color: #333;
+            margin-top: 20px;
+        }
+
+        #timer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background-color: #e53935;
+            color: white;
+            font-size: 18px;
+            padding: 10px;
+            font-weight: bold;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+        }
+
+        #operation-selector, #limit-selector {
+            margin-bottom: 20px;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.4.0/dist/confetti.browser.min.js"></script>
+</head>
+<body>
+    <div id="timer">Thời gian còn lại: 05:00</div>
+
+    <div id="quiz-container">
+        <h1>Bài thi trắc nghiệm phép cộng/trừ từ 1 đến 10</h1>
+
+        <div id="operation-selector">
+            <label><input type="radio" name="operation" value="addition" checked> Chỉ cộng</label>
+            <label><input type="radio" name="operation" value="subtraction"> Chỉ trừ</label>
+            <label><input type="radio" name="operation" value="both"> Cả cộng và trừ</label>
+        </div>
+
+        <div id="limit-selector">
+            <label for="limit">Giới hạn phép tính (1 - 20): </label>
+            <input type="number" id="limit" name="limit" value="10" min="1" max="20">
+        </div>
+
+        <button onclick="startQuiz()">Bắt đầu</button>
+        <div id="quiz" style="display:none;">
+            <ol id="questions-list"></ol>
+            <button onclick="finishQuiz()">Nộp bài</button>
+        </div>
+        <p id="result"></p>
+    </div>
+
+    <script>
+        let questions = [];
+        let score = 0;
+        let timerInterval;
+        const totalTime = 5 * 60; // 5 phút trong giây
+        let timeRemaining = totalTime;
+        let limit = 10; // Giới hạn phép tính mặc định
+
+        function getSelectedOperation() {
+            const operation = document.querySelector('input[name="operation"]:checked').value;
+            return operation;
+        }
+
+        function getLimit() {
+            limit = parseInt(document.getElementById('limit').value) || 10;
+        }
+
+        function generateQuestion() {
+            let num1 = Math.floor(Math.random() * limit) + 1;
+            let num2 = Math.floor(Math.random() * limit) + 1;
+            const operation = getSelectedOperation();
+            let questionText, correctAnswer;
+
+            if (operation === "addition" || (operation === "both" && Math.random() < 0.5)) {
+                questionText = `What is ${num1} + ${num2}?`;
+                correctAnswer = num1 + num2;
+            } else {
+                // Hoán đổi vị trí nếu num1 nhỏ hơn num2 để không có kết quả âm
+                if (num1 < num2) [num1, num2] = [num2, num1];
+                questionText = `What is ${num1} - ${num2}?`;
+                correctAnswer = num1 - num2;
+            }
+
+            const options = new Set([correctAnswer]);
+
+            // Đảm bảo các đáp án không âm
+            while (options.size < 4) {
+                let randomOption = Math.floor(Math.random() * (limit * 2)) - 10; // Giới hạn phạm vi các lựa chọn
+                if (randomOption >= 0) {
+                    options.add(randomOption);
+                }
+            }
+
+            const optionsArray = Array.from(options);
+            optionsArray.sort(() => Math.random() - 0.5);
+
+            return {
+                question: questionText,
+                correctAnswer: correctAnswer,
+                options: optionsArray
+            };
+        }
+
+        function startQuiz() {
+            score = 0;
+            timeRemaining = totalTime;
+            getLimit();
+            questions = Array.from({length: 10}, generateQuestion);
+            const questionsList = document.getElementById("questions-list");
+            questionsList.innerHTML = "";
+
+            questions.forEach((q, index) => {
+                const li = document.createElement("li");
+                const questionParagraph = document.createElement("p");
+                questionParagraph.innerText = `${index + 1}. ${q.question}`;
+                li.appendChild(questionParagraph);
+
+                const optionsContainer = document.createElement("div");
+                optionsContainer.className = "options-container";
+
+                q.options.forEach(option => {
+                    const label = document.createElement("label");
+                    label.innerHTML = `
+                        <input type="radio" name="question-${index}" value="${option}">
+                        ${option}
+                    `;
+                    optionsContainer.appendChild(label);
+                });
+
+                li.appendChild(optionsContainer);
+                questionsList.appendChild(li);
+            });
+
+            document.getElementById("quiz").style.display = "block";
+            document.getElementById("result").innerText = "";
+            startTimer();
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                timeRemaining--;
+                updateTimerDisplay();
+
+                if (timeRemaining <= 0) {
+                    clearInterval(timerInterval);
+                    finishQuiz();
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const minutes = String(Math.floor(timeRemaining / 60)).padStart(2, '0');
+            const seconds = String(timeRemaining % 60).padStart(2, '0');
+            document.getElementById("timer").innerText = `Thời gian còn lại: ${minutes}:${seconds}`;
+        }
+
+        function finishQuiz() {
+            clearInterval(timerInterval);
+            score = 0;
+            questions.forEach((q, index) => {
+                const selectedOption = document.querySelector(`input[name="question-${index}"]:checked`);
+                if (selectedOption && parseInt(selectedOption.value, 10) === q.correctAnswer) {
+                    score++;
+                }
+            });
+
+            document.getElementById("result").innerText = `Bạn đã trả lời đúng ${score} trên 10 câu.`;
+            document.getElementById("quiz").style.display = "none";
+
+            if (score === 10) {
+                celebrate();
+            }
+        }
+
+        function celebrate() {
+            const duration = 3000; 
+            const animationEnd = Date.now() + duration;
+
+            const colors = ['#bb0000', '#ffffff', '#00bb00', '#0000bb'];
+
+            (function frame() {
+                const timeLeft = animationEnd - Date.now();
+                
+                if (timeLeft <= 0) return;
+
+                const particleCount = 50 * (timeLeft / duration);
+                confetti({
+                    particleCount: particleCount,
+                    startVelocity: 30,
+                    spread: 360,
+                    ticks: 60,
+                    origin: {
+                        x: Math.random(),
+                        y: Math.random() - 0.2
+                    },
+                    colors: colors
+                });
+
+                requestAnimationFrame(frame);
+            })();
+        }
+    </script>
+</body>
+</html>

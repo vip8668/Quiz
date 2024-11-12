@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thanh toán bằng TON Wallet</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tonconnect/sdk@2.0.0/dist/tonconnect-sdk.umd.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .container {
+            text-align: center;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Thanh toán bằng TON</h1>
+        <button id="connectWalletButton">Kết nối ví TON</button>
+        <button id="payButton" disabled>Gửi thanh toán 0.1 TON</button>
+        <p id="statusMessage"></p>
+    </div>
+
+    <script>
+        // Khởi tạo TonConnect SDK
+        const tonConnect = new TonConnect.TonConnect();
+
+        // Hàm kết nối ví TON
+        async function connectWallet() {
+            try {
+                const wallets = await tonConnect.getWallets();
+                const walletUrl = tonConnect.connectWallet(wallets[0].universalLink);
+
+                // Mở liên kết để người dùng chọn ví (hoặc có thể hiển thị mã QR)
+                window.open(walletUrl, '_blank');
+
+                // Kích hoạt nút thanh toán sau khi kết nối
+                document.getElementById('payButton').disabled = false;
+                document.getElementById('statusMessage').innerText = "Ví đã kết nối!";
+            } catch (error) {
+                document.getElementById('statusMessage').innerText = "Lỗi khi kết nối ví.";
+                console.error("Lỗi kết nối:", error);
+            }
+        }
+
+        // Hàm thực hiện thanh toán
+        async function sendPayment() {
+            if (!tonConnect.connected) {
+                document.getElementById('statusMessage').innerText = "Vui lòng kết nối ví trước.";
+                return;
+            }
+
+            const toAddress = "Địa chỉ người nhận"; // Nhập địa chỉ người nhận TON
+            const amount = 0.1; // Số lượng TON cần gửi
+            const transaction = {
+                validUntil: Math.floor(Date.now() / 1000) + 600, // Thời gian hết hạn là 10 phút
+                messages: [
+                    {
+                        address: toAddress,
+                        amount: (amount * 1e9).toString(), // Đổi từ TON sang nanoTON
+                        payload: '',
+                    },
+                ],
+            };
+
+            try {
+                await tonConnect.sendTransaction(transaction);
+                document.getElementById('statusMessage').innerText = "Thanh toán thành công!";
+            } catch (error) {
+                document.getElementById('statusMessage').innerText = "Thanh toán thất bại!";
+                console.error("Lỗi khi thanh toán:", error);
+            }
+        }
+
+        // Gán sự kiện cho các nút
+        document.getElementById('connectWalletButton').addEventListener('click', connectWallet);
+        document.getElementById('payButton').addEventListener('click', sendPayment);
+    </script>
+</body>
+</html>
